@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kopotest-lp
+  labels:
+    type: app
+spec:
+  containers:
+  - name: app
+    image: nginx:latest
+    livenessProbe:
+      httpGet:
+        path: /not/exist
+        port: 80
+      initialDelaySeconds: 5
+      timeoutSeconds: 2 # Default 1
+      periodSeconds: 5 # Defaults 10
+      failureThreshold: 1 # Defaults 3
