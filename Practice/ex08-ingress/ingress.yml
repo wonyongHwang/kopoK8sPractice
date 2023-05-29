@@ -1,19 +1,23 @@
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: my-nginx
   annotations:
     ingress.kubernetes.io/rewrite-target: "/"
     ingress.kubernetes.io/ssl-redirect: "false"
+    kubernetes.io/ingress.class: "nginx"
 spec:
   rules:
-  - host: my-nginx.192.168.56.4.sslip.io
-    http:
-      paths: 
-      - path: /
-        backend:
-          serviceName: my-nginx
-          servicePort: 80
+    - host: my-nginx.192.168.56.61.sslip.io
+      http:
+        paths: 
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: my-nginx
+              port: 
+                number: 80
 
 ---
 apiVersion: apps/v1
@@ -30,7 +34,6 @@ spec:
       labels:
         run: my-nginx
     spec:
-      hostNetwork: true
       containers:
       - name: my-nginx
         image: nginx
