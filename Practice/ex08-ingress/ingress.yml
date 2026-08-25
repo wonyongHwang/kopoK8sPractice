@@ -48,7 +48,7 @@ metadata:
   labels:
     run: my-nginx
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   ports:
   - protocol: TCP
     # nodePort: 30101
