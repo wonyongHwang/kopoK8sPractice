@@ -1,0 +1,172 @@
+# path-routing-ngrok.yaml
+# Kubernetes Ingress path-based routing example
+# Environment:
+#   control plane(master): 192.168.56.60
+#   worker01:             192.168.56.61
+#   ingress LoadBalancer: 192.168.56.240
+#
+# Test:
+#   http://192.168.56.240/app1
+#   http://192.168.56.240/app2
+#
+# ngrok on master:
+#   ngrok http http://192.168.56.240:80
+#
+# Then:
+#   https://<your-ngrok-domain>/app1
+#   https://<your-ngrok-domain>/app2
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app1-html
+data:
+  index.html: |
+    <!doctype html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>APP1</title>
+    </head>
+    <body>
+      <h1>APP1</h1>
+      <p>Ingress path routing: /app1 -> app1-service</p>
+    </body>
+    </html>
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app1
+  template:
+    metadata:
+      labels:
+        app: app1
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+      volumes:
+        - name: html
+          configMap:
+            name: app1-html
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app1-service
+spec:
+  selector:
+    app: app1
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app2-html
+data:
+  index.html: |
+    <!doctype html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>APP2</title>
+    </head>
+    <body>
+      <h1>APP2</h1>
+      <p>Ingress path routing: /app2 -> app2-service</p>
+    </body>
+    </html>
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app2
+  template:
+    metadata:
+      labels:
+        app: app2
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+      volumes:
+        - name: html
+          configMap:
+            name: app2-html
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app2-service
+spec:
+  selector:
+    app: app2
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: path-routing-ingress
+  annotations:
+    # /app1, /app2로 들어온 요청을 각 nginx 컨테이너의 / 로 전달
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # ngrok이 외부 HTTPS를 종료하고 LB에는 HTTP로 전달하므로
+    # 실습에서는 Ingress 자체의 HTTPS redirect를 사용하지 않음
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    # host를 지정하지 않음:
+    # ngrok의 랜덤/고정 도메인 Host 헤더와 무관하게 경로 기반으로 라우팅 가능
+    - http:
+        paths:
+          - path: /app1
+            pathType: Prefix
+            backend:
+              service:
+                name: app1-service
+                port:
+                  number: 80
+
+          - path: /app2
+            pathType: Prefix
+            backend:
+              service:
+                name: app2-service
+                port:
+                  number: 80
